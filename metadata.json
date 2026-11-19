@@ -1,0 +1,8 @@
+{
+  "name": "Top Money 24",
+  "description": "Top Money 24 - প্রিমিয়াম অনলাইন মাইক্রো-টাস্ক ও ইনভেস্টমেন্ট আর্নিং প্ল্যাটফর্ম এবং অ্যাডমিন কন্ট্রোল সিস্টেম।",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
