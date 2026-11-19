@@ -70,7 +70,7 @@ export const Navbar: React.FC = () => {
           </div>
           <div>
             <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none flex items-center">
-              The Fund BD <span className="text-blue-600 ml-1">24</span>
+              Top Money <span className="text-blue-600 ml-1">24</span>
             </h1>
             <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">
               Earn • Task • Withdraw

@@ -65,7 +65,7 @@ export const HeroCarousel: React.FC = () => {
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
-            The Fund BD <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-emerald-300 to-amber-300">24</span>
+            Top Money <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-emerald-300 to-amber-300">24</span>
           </h1>
 
           <h2 className="text-xl sm:text-3xl font-extrabold text-amber-300 leading-snug">

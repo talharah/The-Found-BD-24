@@ -1,13 +1,8 @@
 import { Router } from 'express';
-import db from '../db.js';
+import db, { toPublicUser } from '../db.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
-
-function toPublicUser(u) {
-  const { password_hash, ...rest } = u;
-  return rest;
-}
 
 router.get('/', requireAuth, requireAdmin, (req, res) => {
   const rows = db.prepare('SELECT * FROM users ORDER BY joined_at DESC').all();

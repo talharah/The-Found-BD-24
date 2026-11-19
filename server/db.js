@@ -165,5 +165,25 @@ if (userCount === 0) {
   console.log('Seeded database with admin account, starter packages, tasks and settings.');
 }
 
+// Converts a raw DB user row (snake_case columns) into the camelCase shape
+// the frontend's User type expects, and strips the password hash.
+export function toPublicUser(u) {
+  return {
+    id: u.id,
+    name: u.name,
+    phone: u.phone,
+    balance: u.balance,
+    totalEarned: u.total_earned,
+    totalDeposited: u.total_deposited,
+    totalWithdrawn: u.total_withdrawn,
+    joinedAt: u.joined_at,
+    status: u.status,
+    referCode: u.refer_code,
+    referredBy: u.referred_by,
+    role: u.role,
+    welcomeBonusClaimed: !!u.welcome_bonus_claimed,
+  };
+}
+
 export default db;
 export { randomUUID };

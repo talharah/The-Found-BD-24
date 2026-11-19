@@ -5,6 +5,25 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js';
 const router = Router();
 const WITHDRAW_FEE_PERCENT = 5; // keep in sync with platform settings if you add a settings table
 
+function toPublicWithdrawal(w) {
+  return {
+    id: w.id,
+    userId: w.user_id,
+    userName: w.user_name,
+    userPhone: w.user_phone,
+    method: w.method,
+    accountNumber: w.account_number,
+    amount: w.amount,
+    charge: w.charge,
+    finalAmount: w.final_amount,
+    status: w.status,
+    rejectionReason: w.rejection_reason || undefined,
+    createdAt: w.created_at,
+    processedAt: w.processed_at || undefined,
+    adminReference: w.admin_reference || undefined,
+  };
+}
+
 router.post('/', requireAuth, (req, res) => {
   const { method, accountNumber, amount } = req.body;
   if (!method || !accountNumber || !amount) {
@@ -34,12 +53,12 @@ router.post('/', requireAuth, (req, res) => {
 
 router.get('/mine', requireAuth, (req, res) => {
   const rows = db.prepare('SELECT * FROM withdrawals WHERE user_id = ? ORDER BY created_at DESC').all(req.user.id);
-  res.json(rows);
+  res.json(rows.map(toPublicWithdrawal));
 });
 
 router.get('/', requireAuth, requireAdmin, (req, res) => {
   const rows = db.prepare('SELECT * FROM withdrawals ORDER BY created_at DESC').all();
-  res.json(rows);
+  res.json(rows.map(toPublicWithdrawal));
 });
 
 router.post('/:id/complete', requireAuth, requireAdmin, (req, res) => {

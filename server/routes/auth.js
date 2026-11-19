@@ -1,15 +1,10 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import db, { randomUUID } from '../db.js';
+import db, { randomUUID, toPublicUser } from '../db.js';
 import { JWT_SECRET } from '../middleware/auth.js';
 
 const router = Router();
-
-function toPublicUser(u) {
-  const { password_hash, ...rest } = u;
-  return rest;
-}
 
 router.post('/register', (req, res) => {
   const { name, phone, password, referCode } = req.body;

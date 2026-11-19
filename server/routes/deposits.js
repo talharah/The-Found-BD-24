@@ -4,6 +4,23 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
 
+function toPublicDeposit(d) {
+  return {
+    id: d.id,
+    userId: d.user_id,
+    userName: d.user_name,
+    userPhone: d.user_phone,
+    method: d.method,
+    senderNumber: d.sender_number,
+    amount: d.amount,
+    trxId: d.trx_id,
+    status: d.status,
+    rejectionReason: d.rejection_reason || undefined,
+    createdAt: d.created_at,
+    processedAt: d.processed_at || undefined,
+  };
+}
+
 router.post('/', requireAuth, (req, res) => {
   const { method, senderNumber, amount, trxId } = req.body;
   if (!method || !senderNumber || !amount || !trxId) {
@@ -22,13 +39,13 @@ router.post('/', requireAuth, (req, res) => {
 
 router.get('/mine', requireAuth, (req, res) => {
   const rows = db.prepare('SELECT * FROM deposits WHERE user_id = ? ORDER BY created_at DESC').all(req.user.id);
-  res.json(rows);
+  res.json(rows.map(toPublicDeposit));
 });
 
 // Admin-only: list, approve, reject
 router.get('/', requireAuth, requireAdmin, (req, res) => {
   const rows = db.prepare('SELECT * FROM deposits ORDER BY created_at DESC').all();
-  res.json(rows);
+  res.json(rows.map(toPublicDeposit));
 });
 
 router.post('/:id/approve', requireAuth, requireAdmin, (req, res) => {
