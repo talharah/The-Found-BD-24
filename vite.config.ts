@@ -21,7 +21,7 @@ export default defineConfig(() => {
       // fetch('/api/...') without worrying about the backend's port or CORS.
       proxy: {
         '/api': {
-          target: 'http://localhost:5000',
+          target: 'http://localhost:4001',
           changeOrigin: true,
         },
       },

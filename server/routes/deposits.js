@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import db, { randomUUID } from '../db.js';
+import { pool, randomUUID, withTransaction } from '../db.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
@@ -12,7 +12,7 @@ function toPublicDeposit(d) {
     userPhone: d.user_phone,
     method: d.method,
     senderNumber: d.sender_number,
-    amount: d.amount,
+    amount: Number(d.amount),
     trxId: d.trx_id,
     status: d.status,
     rejectionReason: d.rejection_reason || undefined,
@@ -21,56 +21,72 @@ function toPublicDeposit(d) {
   };
 }
 
-router.post('/', requireAuth, (req, res) => {
-  const { method, senderNumber, amount, trxId } = req.body;
-  if (!method || !senderNumber || !amount || !trxId) {
-    return res.status(400).json({ error: 'সব তথ্য পূরণ করুন।' });
+router.post('/', requireAuth, async (req, res) => {
+  try {
+    const { method, senderNumber, amount, trxId } = req.body;
+    if (!method || !senderNumber || !amount || !trxId) {
+      return res.status(400).json({ error: 'সব তথ্য পূরণ করুন।' });
+    }
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = rows[0];
+    const id = `dep-${randomUUID()}`;
+
+    await pool.query(
+      `INSERT INTO deposits (id, user_id, user_name, user_phone, method, sender_number, amount, trx_id, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [id, user.id, user.name, user.phone, method, senderNumber, amount, trxId, new Date().toISOString()]
+    );
+
+    res.status(201).json({ message: 'জমার আবেদন পাঠানো হয়েছে, অ্যাডমিন অনুমোদনের অপেক্ষায়।' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'সার্ভারে একটি সমস্যা হয়েছে, পরে আবার চেষ্টা করুন।' });
   }
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-  const id = `dep-${randomUUID()}`;
-
-  db.prepare(`
-    INSERT INTO deposits (id, user_id, user_name, user_phone, method, sender_number, amount, trx_id, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, user.id, user.name, user.phone, method, senderNumber, amount, trxId, new Date().toISOString());
-
-  res.status(201).json({ message: 'জমার আবেদন পাঠানো হয়েছে, অ্যাডমিন অনুমোদনের অপেক্ষায়।' });
 });
 
-router.get('/mine', requireAuth, (req, res) => {
-  const rows = db.prepare('SELECT * FROM deposits WHERE user_id = ? ORDER BY created_at DESC').all(req.user.id);
+router.get('/mine', requireAuth, async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM deposits WHERE user_id = $1 ORDER BY created_at DESC', [req.user.id]);
   res.json(rows.map(toPublicDeposit));
 });
 
 // Admin-only: list, approve, reject
-router.get('/', requireAuth, requireAdmin, (req, res) => {
-  const rows = db.prepare('SELECT * FROM deposits ORDER BY created_at DESC').all();
+router.get('/', requireAuth, requireAdmin, async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM deposits ORDER BY created_at DESC');
   res.json(rows.map(toPublicDeposit));
 });
 
-router.post('/:id/approve', requireAuth, requireAdmin, (req, res) => {
-  const dep = db.prepare('SELECT * FROM deposits WHERE id = ?').get(req.params.id);
-  if (!dep || dep.status !== 'pending') {
-    return res.status(400).json({ error: 'এই আবেদনটি প্রক্রিয়া করা যাচ্ছে না।' });
+router.post('/:id/approve', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM deposits WHERE id = $1', [req.params.id]);
+    const dep = rows[0];
+    if (!dep || dep.status !== 'pending') {
+      return res.status(400).json({ error: 'এই আবেদনটি প্রক্রিয়া করা যাচ্ছে না।' });
+    }
+    await withTransaction(async (client) => {
+      await client.query('UPDATE deposits SET status = $1, processed_at = $2 WHERE id = $3', ['approved', new Date().toISOString(), dep.id]);
+      await client.query(
+        'UPDATE users SET balance = balance + $1, total_deposited = total_deposited + $1 WHERE id = $2',
+        [dep.amount, dep.user_id]
+      );
+    });
+    res.json({ message: 'জমা অনুমোদিত হয়েছে।' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'সার্ভারে একটি সমস্যা হয়েছে, পরে আবার চেষ্টা করুন।' });
   }
-  const tx = db.transaction(() => {
-    db.prepare('UPDATE deposits SET status = ?, processed_at = ? WHERE id = ?')
-      .run('approved', new Date().toISOString(), dep.id);
-    db.prepare('UPDATE users SET balance = balance + ?, total_deposited = total_deposited + ? WHERE id = ?')
-      .run(dep.amount, dep.amount, dep.user_id);
-  });
-  tx();
-  res.json({ message: 'জমা অনুমোদিত হয়েছে।' });
 });
 
-router.post('/:id/reject', requireAuth, requireAdmin, (req, res) => {
+router.post('/:id/reject', requireAuth, requireAdmin, async (req, res) => {
   const { reason } = req.body;
-  const dep = db.prepare('SELECT * FROM deposits WHERE id = ?').get(req.params.id);
+  const { rows } = await pool.query('SELECT * FROM deposits WHERE id = $1', [req.params.id]);
+  const dep = rows[0];
   if (!dep || dep.status !== 'pending') {
     return res.status(400).json({ error: 'এই আবেদনটি প্রক্রিয়া করা যাচ্ছে না।' });
   }
-  db.prepare('UPDATE deposits SET status = ?, rejection_reason = ?, processed_at = ? WHERE id = ?')
-    .run('rejected', reason || 'ভুল ট্রানজেকশন আইডি অথবা পেমেন্ট পাওয়া যায়নি', new Date().toISOString(), dep.id);
+  await pool.query(
+    'UPDATE deposits SET status = $1, rejection_reason = $2, processed_at = $3 WHERE id = $4',
+    ['rejected', reason || 'ভুল ট্রানজেকশন আইডি অথবা পেমেন্ট পাওয়া যায়নি', new Date().toISOString(), dep.id]
+  );
   res.json({ message: 'জমা বাতিল করা হয়েছে।' });
 });
 

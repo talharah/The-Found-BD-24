@@ -13,7 +13,7 @@ import teamRoutes from './routes/team.js';
 import userRoutes from './routes/users.js';
 import settingsRoutes from './routes/settings.js';
 import { requireAuth } from './middleware/auth.js';
-import db, { toPublicUser } from './db.js';
+import { pool, toPublicUser, initDb } from './db.js';
 
 const app = express();
 app.use(cors());
@@ -29,8 +29,9 @@ app.use('/api/users', userRoutes);
 app.use('/api/settings', settingsRoutes);
 
 // Returns the logged-in user's own current data (fresh from the database, not the client).
-app.get('/api/me', requireAuth, (req, res) => {
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+app.get('/api/me', requireAuth, async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+  const user = rows[0];
   if (!user) return res.status(404).json({ error: 'ব্যবহারকারী পাওয়া যায়নি।' });
   res.json(toPublicUser(user));
 });
@@ -49,6 +50,15 @@ app.get(/^(?!\/api).*/, (req, res) => {
 });
 
 const PORT = process.env.PORT || 4001;
-app.listen(PORT, () => {
-  console.log(`Backend server running on http://localhost:${PORT}`);
-});
+
+// Make sure the database tables (and seed data) exist before accepting any requests.
+initDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Backend server running on http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
+  });
