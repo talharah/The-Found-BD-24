@@ -194,6 +194,7 @@ export async function initDb() {
       withdrawFeePercent: 0,
       referralBonusPercent: 10,
       dailyLoginBonus: 5,
+      welcomeBonus: 15,
       siteNotice: 'অফিশিয়াল ঘোষণা: টপ মানি ২৪ এ আপনাকে স্বাগতম! সহজ টাস্কে আয় করুন এবং ইনস্ট্যান্ট পেমেন্ট গ্রহণ করুন।',
       supportTelegram: 'https://t.me/TopMoney24Support',
       supportWhatsapp: '+8801825937544',

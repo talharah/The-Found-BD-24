@@ -1173,6 +1173,15 @@ export const AdminPanel: React.FC = () => {
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white font-number font-bold"
                   />
                 </div>
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1">স্বাগতম বোনাস (৳) — ওয়েলকাম পপআপে দেখাবে</label>
+                  <input
+                    type="number"
+                    value={editSettings.welcomeBonus}
+                    onChange={e => setEditSettings({ ...editSettings, welcomeBonus: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white font-number font-bold"
+                  />
+                </div>
               </div>
 
               <div>

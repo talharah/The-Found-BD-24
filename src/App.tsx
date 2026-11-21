@@ -16,6 +16,7 @@ import { UserAuthModal } from './components/UserAuthModal';
 import { DepositModal } from './components/DepositModal';
 import { WithdrawModal } from './components/WithdrawModal';
 import { AdminPanel } from './components/AdminPanel';
+import { WelcomeNoticeModal } from './components/WelcomeNoticeModal';
 import { 
   SlidersHorizontal, 
   ShieldCheck, 
@@ -37,7 +38,9 @@ const MainContent: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white pb-16 lg:pb-0">
-      
+
+      <WelcomeNoticeModal />
+
       {/* Toast Notification Banner */}
       {toast && (
         <div className="fixed top-20 right-4 z-50 animate-in fade-in slide-in-from-top-4 max-w-sm">

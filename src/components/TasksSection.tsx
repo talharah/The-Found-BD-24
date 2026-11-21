@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ListCheck, 
   Youtube, 
@@ -15,12 +15,35 @@ import {
 import { useApp } from '../context/AppContext';
 import { Task } from '../types';
 
+const COOLDOWN_HOURS = 24;
+
+// How much time is left before this task can be done again, or null if it's
+// available right now (never done, or the 24-hour cooldown has passed).
+function cooldownRemaining(completedAt: string): { hours: number; minutes: number } | null {
+  const msLeft = new Date(completedAt).getTime() + COOLDOWN_HOURS * 3600000 - Date.now();
+  if (msLeft <= 0) return null;
+  const hours = Math.floor(msLeft / 3600000);
+  const minutes = Math.floor((msLeft % 3600000) / 60000);
+  return { hours, minutes };
+}
+
 export const TasksSection: React.FC = () => {
-  const { tasks, completeTask, currentUser, userPackages, claimDailyPackageEarning } = useApp();
+  const { tasks, completeTask, currentUser, userPackages, claimDailyPackageEarning, completedTasks } = useApp();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [timer, setTimer] = useState<number>(0);
   const [isCounting, setIsCounting] = useState<boolean>(false);
-  const [completedTaskIds, setCompletedTaskIds] = useState<string[]>([]);
+  // Ticks once a minute so the countdown labels below stay accurate without needing a refresh.
+  const [, setClockTick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setClockTick(t => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  const lastCompletedAt = (taskId: string): string | undefined => {
+    // completedTasks is ordered newest-first by the backend.
+    return completedTasks.find(c => c.taskId === taskId)?.completedAt;
+  };
 
   const getTaskIcon = (type: Task['type']) => {
     switch (type) {
@@ -55,10 +78,9 @@ export const TasksSection: React.FC = () => {
     }, 1000);
   };
 
-  const handleClaimReward = () => {
+  const handleClaimReward = async () => {
     if (activeTask) {
-      completeTask(activeTask.id);
-      setCompletedTaskIds(prev => [...prev, activeTask.id]);
+      await completeTask(activeTask.id);
       setActiveTask(null);
     }
   };
@@ -127,7 +149,8 @@ export const TasksSection: React.FC = () => {
 
         <div className="space-y-3">
           {tasks.map(task => {
-            const isDone = completedTaskIds.includes(task.id);
+            const completedAt = lastCompletedAt(task.id);
+            const cooldown = completedAt ? cooldownRemaining(completedAt) : null;
             return (
               <div
                 key={task.id}
@@ -154,10 +177,10 @@ export const TasksSection: React.FC = () => {
                 </div>
 
                 <div className="flex items-center sm:self-center">
-                  {isDone ? (
-                    <span className="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center space-x-1">
+                  {cooldown ? (
+                    <span className="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center space-x-1.5">
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>সম্পন্ন হয়েছে</span>
+                      <span>পরবর্তী সুযোগ: {cooldown.hours}ঘ {cooldown.minutes}মি পর</span>
                     </span>
                   ) : (
                     <button

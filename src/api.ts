@@ -46,6 +46,7 @@ export const api = {
 
   getTasks: () => request('/tasks'),
   completeTask: (taskId: string) => request(`/tasks/${taskId}/complete`, { method: 'POST' }),
+  myCompletedTasks: () => request('/tasks/completed/mine'),
   saveTask: (task: any) => request('/tasks', { method: 'POST', body: JSON.stringify(task) }),
   deleteTask: (id: string) => request(`/tasks/${id}`, { method: 'DELETE' }),
 

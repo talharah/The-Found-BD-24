@@ -110,6 +110,7 @@ export interface PlatformSettings {
   withdrawFeePercent: number;
   referralBonusPercent: number;
   dailyLoginBonus: number;
+  welcomeBonus: number;
   siteNotice: string;
   supportTelegram: string;
   supportWhatsapp: string;

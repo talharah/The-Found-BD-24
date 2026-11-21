@@ -21,6 +21,7 @@ interface AppContextType {
   packages: Package[];
   tasks: Task[];
   userPackages: UserPackage[];
+  completedTasks: { taskId: string; completedAt: string }[];
   adminPaymentNumbers: AdminPaymentNumbers;
   settings: PlatformSettings;
   activeTab: MainTabType;
@@ -71,6 +72,7 @@ const DEFAULT_SETTINGS: PlatformSettings = {
   withdrawFeePercent: 0,
   referralBonusPercent: 10,
   dailyLoginBonus: 5,
+  welcomeBonus: 15,
   siteNotice: '',
   supportTelegram: '',
   supportWhatsapp: '',
@@ -92,6 +94,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [packages, setPackages] = useState<Package[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [userPackages, setUserPackages] = useState<UserPackage[]>([]);
+  const [completedTasks, setCompletedTasks] = useState<{ taskId: string; completedAt: string }[]>([]);
   const [adminPaymentNumbers, setAdminPaymentNumbers] = useState<AdminPaymentNumbers>(DEFAULT_PAYMENT_NUMBERS);
   const [settings, setSettings] = useState<PlatformSettings>(DEFAULT_SETTINGS);
 
@@ -136,6 +139,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDeposits([]);
       setWithdrawals([]);
       setUserPackages([]);
+      setCompletedTasks([]);
       return;
     }
     try {
@@ -149,16 +153,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setDeposits(allDeps);
         setWithdrawals(allWds);
         setUserPackages([]);
+        setCompletedTasks([]);
       } else {
-        const [myDeps, myWds, myPkgs] = await Promise.all([
+        const [myDeps, myWds, myPkgs, myCompletedTasks] = await Promise.all([
           api.myDeposits(),
           api.myWithdrawals(),
           api.myPackages(),
+          api.myCompletedTasks(),
         ]);
         setUsers([user]);
         setDeposits(myDeps);
         setWithdrawals(myWds);
         setUserPackages(myPkgs);
+        setCompletedTasks(myCompletedTasks);
       }
     } catch (err) {
       console.error('Failed to load user data:', err);
@@ -235,6 +242,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDeposits([]);
     setWithdrawals([]);
     setUserPackages([]);
+    setCompletedTasks([]);
     setIsAdminModalOpen(false);
     setActiveTab('home');
     showToast('আপনার অ্যাকাউন্ট থেকে লগআউট করা হয়েছে।', 'info');
@@ -341,6 +349,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await api.completeTask(taskId);
       showToast(`অভিনন্দন! "${task.title}" সম্পন্ন করে আপনার ব্যালেন্সে ৳${task.reward} যোগ হয়েছে!`, 'success');
       await refreshMe();
+      await refreshUserData(currentUser);
       return true;
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -506,6 +515,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         packages,
         tasks,
         userPackages,
+        completedTasks,
         adminPaymentNumbers,
         settings,
         activeTab,

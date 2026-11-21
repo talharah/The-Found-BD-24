@@ -49,18 +49,36 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   res.json({ message: 'টাস্ক ডিলিট করা হয়েছে।' });
 });
 
+const COOLDOWN_HOURS = 24;
+
+// The user's task-completion history (with timestamps), so the frontend can
+// show a per-task countdown instead of a permanent "already done".
+router.get('/completed/mine', requireAuth, async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT task_id, completed_at FROM completed_tasks WHERE user_id = $1 ORDER BY completed_at DESC',
+    [req.user.id]
+  );
+  res.json(rows.map(r => ({ taskId: r.task_id, completedAt: r.completed_at })));
+});
+
 router.post('/:id/complete', requireAuth, async (req, res) => {
   try {
     const { rows: taskRows } = await pool.query('SELECT * FROM tasks WHERE id = $1', [req.params.id]);
     const task = taskRows[0];
     if (!task) return res.status(404).json({ error: 'টাস্ক পাওয়া যায়নি।' });
 
-    const { rows: alreadyRows } = await pool.query(
-      'SELECT id FROM completed_tasks WHERE user_id = $1 AND task_id = $2',
+    // Only block if the SAME task was completed within the last 24 hours —
+    // after that it becomes claimable again instead of being a one-time task.
+    const { rows: lastRows } = await pool.query(
+      'SELECT completed_at FROM completed_tasks WHERE user_id = $1 AND task_id = $2 ORDER BY completed_at DESC LIMIT 1',
       [req.user.id, task.id]
     );
-    if (alreadyRows.length > 0) {
-      return res.status(400).json({ error: 'এই টাস্ক আগেই সম্পন্ন করা হয়েছে।' });
+    if (lastRows[0]) {
+      const hoursSince = (Date.now() - new Date(lastRows[0].completed_at).getTime()) / 3600000;
+      if (hoursSince < COOLDOWN_HOURS) {
+        const hoursLeft = Math.ceil(COOLDOWN_HOURS - hoursSince);
+        return res.status(400).json({ error: `এই টাস্কটি আবার করতে আরও প্রায় ${hoursLeft} ঘণ্টা অপেক্ষা করুন।` });
+      }
     }
 
     await withTransaction(async (client) => {
